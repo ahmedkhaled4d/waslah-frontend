@@ -1,78 +1,53 @@
-# React + TypeScript + Vite
+# Waslah WhatsApp CRM — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + TypeScript + Vite single-page app for the Waslah backend (`../waslah-backend`). UI is Tailwind CSS v4 with shadcn/ui primitives; data fetching is TanStack Query; routing is React Router.
 
-Currently, two official plugins are available:
+## What's here
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Login** with email/password; the JWT is kept in `localStorage` and cleared on expiry or any `401`.
+- **Inbox**: filter by inbox, status, assignee and label; conversation list with cursor paging; message thread (text, media placeholders, location, button replies, reactions) with delivery ticks; reply composer that enforces the 24-hour customer-service window; assign/claim/release, status changes, move between inboxes (managers), labels, mark-as-read; details panel with the contact's deals.
+- **Deals**: per-pipeline kanban board (drag deals between stages) with stage and weighted totals, won/lost lists, create/edit deals, mark won/lost, labels, delete (managers).
+- **Settings**: profile and password; labels; inboxes and members (managers); pipelines and stages (managers); users (admins).
+- Role-aware UI: agents only see what the API lets them do (claim/release instead of assign, no management pages).
 
-## React Compiler
+Real-time updates are polled (10s for lists, 5s for the open conversation) until the backend's WebSocket API ships.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+## Setup
 
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm install
+cp .env.example .env        # set VITE_API_URL to the API Gateway URL
+pnpm dev                    # http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+```bash
+pnpm build                  # type-check + production bundle in dist/
+pnpm lint
+pnpm preview
+```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The dev stage of the API allows any origin for CORS. Production restricts origins in `infra/waslah-stack.ts`; add the frontend's domain there before deploying.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Project layout
 
 ```
+src/
+├── api/            # one file per resource: raw calls + TanStack Query hooks
+├── auth/           # AuthProvider, useAuth, route guards
+├── components/
+│   ├── ui/         # shadcn/ui primitives (generated)
+│   ├── common/     # avatars, label chips, color picker, confirm dialog, states
+│   └── layout/     # app shell, sidebar, page header
+├── hooks/          # theme, form error helpers
+├── lib/            # fetch client (api.ts), formatting, colors, cn()
+├── pages/          # inbox/, deals/, settings/, login, not-found
+└── types/api.ts    # types mirroring ../waslah-backend/openapi.json
+```
+
+`openapi.json` at the repo root is a copy of the backend's spec; refresh it (and `src/types/api.ts`) when the API changes.
+
+## Known gaps (backend-dependent)
+
+- There is no contacts endpoint yet, so contacts are shown as `Contact XXXXXX` (last six characters of their id). Names and phone numbers will appear once `GET /v1/contacts/{id}` exists; the display lives in `contactHandle()` in `src/lib/format.ts`.
+- Media messages show a placeholder because media is not yet copied to S3 / served via presigned URLs.
+- Template messages, campaigns, automation and analytics are not implemented in the backend yet.

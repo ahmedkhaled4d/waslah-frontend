@@ -13,8 +13,10 @@ interface AuthState {
   loading: boolean
   isManager: boolean
   isAdmin: boolean
+  /** Whether the login page should return the user to the page they were on. False after an explicit sign-out. */
+  resumeAfterLogin: boolean
   login: (email: string, password: string) => Promise<User>
-  logout: () => void
+  logout: (options?: { resume?: boolean }) => void
   refreshUser: () => Promise<void>
 }
 
@@ -24,14 +26,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState<boolean>(() => tokenStore.get() !== null)
+  const [resumeAfterLogin, setResumeAfterLogin] = useState(true)
 
-  const logout = useCallback(() => {
-    tokenStore.clear()
-    setUser(null)
-    qc.clear()
-  }, [qc])
+  const logout = useCallback(
+    (options?: { resume?: boolean }) => {
+      setResumeAfterLogin(options?.resume ?? false)
+      tokenStore.clear()
+      setUser(null)
+      qc.clear()
+    },
+    [qc],
+  )
 
-  useEffect(() => onUnauthorized(logout), [logout])
+  // Session expiry (401) should bring the user back to where they were after signing in again.
+  useEffect(() => onUnauthorized(() => logout({ resume: true })), [logout])
 
   useEffect(() => {
     if (tokenStore.get() === null) return
@@ -69,13 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
+      resumeAfterLogin,
       isManager: user ? MANAGER_ROLES.includes(user.role) : false,
       isAdmin: user?.role === 'admin',
       login,
       logout,
       refreshUser,
     }),
-    [user, loading, login, logout, refreshUser],
+    [user, loading, resumeAfterLogin, login, logout, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

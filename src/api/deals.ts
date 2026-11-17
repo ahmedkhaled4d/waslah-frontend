@@ -55,7 +55,7 @@ export function useDeal(id: string | undefined) {
   })
 }
 
-function useDealMutation<TVars>(mutationFn: (vars: TVars) => Promise<Deal | void>) {
+function useDealMutation<TVars, TResult extends Deal | void>(mutationFn: (vars: TVars) => Promise<TResult>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn,

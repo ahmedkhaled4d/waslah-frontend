@@ -30,7 +30,7 @@ export function useBoard(pipelineId: string | undefined) {
   })
 }
 
-function usePipelineMutation<TVars>(mutationFn: (vars: TVars) => Promise<Pipeline | void>) {
+function usePipelineMutation<TVars, TResult extends Pipeline | void>(mutationFn: (vars: TVars) => Promise<TResult>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn,
